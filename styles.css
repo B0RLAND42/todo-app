@@ -41,12 +41,21 @@ h1 {
   font-weight: 400;
   font-style: normal;
   margin-top: 100px;
-  margin-bottom: 20px;
   font-size: 3rem;
   font-weight: 800;
   text-transform: uppercase;
   text-align: center;
   color: var(--accent-color);
+}
+
+h3 {
+  font-family: "Permanent Marker", cursive;
+  font-weight: 400;
+  font-style: normal;
+  margin-bottom: 30px;
+  line-height: 12px;
+  text-align: center;
+  color: var(--text-color);
 }
 
 .wrapper {
