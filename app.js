@@ -1,88 +1,134 @@
-const todoForm = document.querySelector('form');
-const todoInput = document.getElementById('todo-input');
-const todoListUl = document.getElementById('todo-list');
+const todoForm = document.querySelector("form");
+const todoInput = document.getElementById("todo-input");
+const todoListUl = document.getElementById("todo-list");
 
 let allTodos = getTodos();
 updateTodoList();
+todoInput.focus();
 
-todoForm.addEventListener('submit', function(e) {
+todoForm.addEventListener("submit", (e) => {
   e.preventDefault();
   addTodo();
-})
+});
 
 function addTodo() {
-  const todoText = todoInput.value.trim();
-  if (todoText.length > 0) {
-    const todoObject = {
-      text: todoText,
-      completed: false
-    }
-    allTodos.push(todoObject);
-    updateTodoList();
-    saveTodos();
-    todoInput.value = "";
-  }
+  const text = todoInput.value.trim();
+  if (!text) return;
+
+  allTodos.push({
+    id: crypto.randomUUID(),
+    text,
+    completed: false,
+  });
+
+  saveTodos();
+  updateTodoList();
+  todoInput.value = "";
 }
 
 function updateTodoList() {
   todoListUl.innerHTML = "";
-  allTodos.forEach((todo, todoIndex) => {
-    todoItem = createTodoItem(todo, todoIndex);
-    todoListUl.append(todoItem);
-  })
+  allTodos.forEach((todo) => {
+    todoListUl.append(createTodoItem(todo));
+  });
 }
 
-function createTodoItem (todo, todoIndex) {
-  const todoId = "todo-" + todoIndex;
-  const todoLi = document.createElement("li");
-  const todoText = todo.text;
-  todoLi.className = "todo";
-  todoLi.innerHTML = `
-    <input type="checkbox" id="${todoId}">
-    <label class="custom-checkbox" for="${todoId}">
+function createTodoItem(todo) {
+  const li = document.createElement("li");
+  li.className = "todo";
 
-      <svg fill="transparent" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>
-
+  // NOTE: todo text is a SPAN (not a label) so taps don’t toggle checkbox
+  li.innerHTML = `
+    <input type="checkbox" id="${todo.id}">
+    <label class="custom-checkbox" for="${todo.id}">
+      <svg fill="transparent" xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 -960 960 960">
+        <path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/>
+      </svg>
     </label>
 
-    <label for="${todoId}" class="todo-text">
-      ${todoText}
-    </label>
-    
-    <button class="delete-button">
+    <span class="todo-text">${todo.text}</span>
 
-      <svg fill="var(--secondary-color)" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
-
+    <button class="delete-button" aria-label="Delete todo" title="Delete Task">
+      <svg fill="var(--secondary-color)" xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 -960 960 960">
+        <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Z"/>
+      </svg>
     </button>
-  `
+  `;
 
-  const deleteButton = todoLi.querySelector(".delete-button");
-  deleteButton.addEventListener("click", () => {
-    deleteTodoItem(todoIndex);
-  })
-
-  const checkbox = todoLi.querySelector("input");
-  checkbox.addEventListener("change", () => {
-    allTodos[todoIndex].completed = checkbox.checked;
-    saveTodos();
-  })
-  
+  // Checkbox → complete
+  const checkbox = li.querySelector('input[type="checkbox"]');
   checkbox.checked = todo.completed;
-  return todoLi;
+  checkbox.addEventListener("change", () => {
+    todo.completed = checkbox.checked;
+    saveTodos();
+  });
+
+  // Delete
+  li.querySelector(".delete-button").addEventListener("click", () => {
+    allTodos = allTodos.filter(t => t.id !== todo.id);
+    saveTodos();
+    updateTodoList();
+  });
+
+  // Edit behavior
+  const textEl = li.querySelector(".todo-text");
+
+  // Desktop: double-click to edit
+  textEl.addEventListener("dblclick", () => {
+    if (!todo.completed && !li.classList.contains("editing")) {
+      startEditing(todo, li);
+    }
+  });
+
+  // Mobile: single tap to edit
+  textEl.addEventListener("click", () => {
+    if (window.matchMedia("(pointer: coarse)").matches) {
+      if (!todo.completed && !li.classList.contains("editing")) {
+        startEditing(todo, li);
+      }
+    }
+  });
+
+  return li;
 }
 
-function deleteTodoItem(todoIndex) {
-  allTodos = allTodos.filter((_, i) => i !== todoIndex);
+function startEditing(todo, li) {
+  const textSpan = li.querySelector(".todo-text");
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = todo.text;
+  input.className = "todo-edit";
+
+  li.replaceChild(input, textSpan);
+  li.classList.add("editing");
+
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") finishEditing(todo, input.value);
+    if (e.key === "Escape") updateTodoList();
+  });
+
+  input.addEventListener("blur", () => {
+    finishEditing(todo, input.value);
+  });
+}
+
+function finishEditing(todo, value) {
+  const text = value.trim();
+  if (!text) return updateTodoList();
+
+  todo.text = text;
   saveTodos();
   updateTodoList();
 }
 
 function saveTodos() {
-  const todosJson = JSON.stringify(allTodos);
-  localStorage.setItem("todos", todosJson);
+  localStorage.setItem("todos", JSON.stringify(allTodos));
 }
 
 function getTodos() {
-  const todos = localStorage.getItem("todos") || "[]";
-  return JSON.parse(todos);
+  return JSON.parse(localStorage.getItem("todos") || "[]");
 }
